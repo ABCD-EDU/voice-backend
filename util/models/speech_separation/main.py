@@ -10,9 +10,6 @@ import torch
 import torch.nn.functional as F
 import torchaudio
 torchaudio.set_audio_backend("soundfile")
-
-logger = logging.getLogger(__name__)
-
 # Define training procedure
 
 
@@ -50,7 +47,6 @@ class Separation(sb.Brain):
         return est_source
 
     def save_audio(self, predictions, output_path):
-        # print(self.hparams)
         for ns in range(int(self.hparams.num_spks)):
             # Estimated source
             signal = predictions[0, :, ns]
@@ -97,6 +93,3 @@ def run(input_path: str, output_path: str):
     separator.save_audio(predictions=predictions,
                          output_path="util/models/speech_separation/results")
     print("done separation")
-
-# if __name__ == "__main__":
-#     run('test_mix.wav','results')
