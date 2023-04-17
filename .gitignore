@@ -54,3 +54,5 @@ model_checkpoints/
 results/
 *.wav
 checkpoint/
+
+.env
