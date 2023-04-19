@@ -138,6 +138,6 @@ pretrained_separator: !new:speechbrain.utils.parameter_transfer.Pretrainer
     decoder: *id004
     masknet: *id005
   paths:
-    encoder: util/models/speech_separation/model/encoder.ckpt
-    decoder: util/models/speech_separation/model/decoder.ckpt
-    masknet: util/models/speech_separation/model/masknet.ckpt
+    encoder: model/encoder.ckpt
+    decoder: model/decoder.ckpt
+    masknet: model/masknet.ckpt
