@@ -30,17 +30,22 @@ ckpt_path = os.path.join(hparams.log.checkpoint_dir,
 ckpt = torch.load(ckpt_path, map_location='cpu')
 model.load_state_dict(ckpt['state_dict'] if not (
     'EMA' in ckpt_path) else ckpt)
+print("MODEL LOADED")
 
 
 def run(audio_bytes: BytesIO):
     wav, _ = rosa.load(audio_bytes, sr=hparams.audio.sr, mono=True)
     wav = torch.Tensor(wav).unsqueeze(0).to(device)
+    print("LOADING AUDIO FILES")
 
     lp = LowPass(ratio=[1/2]).to(device)
     wav = lp(wav, 0)
+    print("LOW PASS DONE")
 
     upsampled = model.sample(wav, hparams.ddpm.max_step, no_init_noise,
                              True)
+
+    print("UPSAMPLING DONE")
 
     audio_buffer = BytesIO()
     for i, uwav in enumerate(upsampled):
@@ -49,5 +54,6 @@ def run(audio_bytes: BytesIO):
             continue
         swrite(audio_buffer,
                hparams.audio.sr, uwav[0].detach().cpu().numpy())
+    print("SAVING TO BUFFER DONE")
 
     return audio_buffer
