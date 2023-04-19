@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydub import AudioSegment
 from io import BytesIO
-import json
 
 from util.kafka.producer import KafkaProducerSingleton
 import util.minio.client as minio

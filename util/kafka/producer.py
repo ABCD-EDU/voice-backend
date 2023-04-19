@@ -30,3 +30,6 @@ class KafkaProducerSingleton:
                 value_serializer=lambda m: json.dumps(m).encode('ascii')
             )
             KafkaProducerSingleton.__instance = self
+
+
+KafkaProducerSingleton()

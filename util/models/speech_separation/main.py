@@ -1,11 +1,17 @@
+# from util.minio.client import get_minio_client
+import librosa
+import numpy as np
+from pydub import AudioSegment
+import soundfile as sf
+import torch
+import speechbrain as sb
 from speechbrain.dataio.dataio import read_audio
-import logging
 from tqdm import tqdm
 from hyperpyyaml import load_hyperpyyaml
 from speechbrain.utils.distributed import run_on_main
 import speechbrain as sb
 import os
-import sys
+from io import BytesIO
 import torch
 import torch.nn.functional as F
 import torchaudio
@@ -46,50 +52,71 @@ class Separation(sb.Brain):
 
         return est_source
 
-    def save_audio(self, predictions, output_path):
+    audio_files = []
+
+    def save_audio(self, predictions):
+        audio_outputs = []
+        for ns in range(int(self.hparams.num_spks)):
+            # Estimated source
+            signal = predictions[0, :, ns]
+            signal = signal / signal.abs().max()
+
+            # Exports audio to bytes format
+            audio_data = BytesIO()
+            torchaudio.save(
+                audio_data, signal.unsqueeze(0).cpu(), self.hparams.sample_rate, format="wav"
+            )
+            audio_outputs.append(audio_data)
+        return audio_outputs
+
+    def save_local(self, predictions, output_path):
+        # print(self.hparams)
         for ns in range(int(self.hparams.num_spks)):
             # Estimated source
             signal = predictions[0, :, ns]
             signal = signal / signal.abs().max()
             save_file = os.path.join(
-                f"{output_path}", "source_{}_hat.wav".format(ns + 1)
+                f"{output_path}", "source{}hat.wav".format(ns + 1)
             )
             torchaudio.save(
                 save_file, signal.unsqueeze(0).cpu(), self.hparams.sample_rate
             )
 
-# TODO: use input_path, output_path instead of static paths
 
+def run(audio_bytes: BytesIO):
+    # TODO: Load from MinIO instead of local path
+    mix_audio, sr = librosa.load(audio_bytes, sr=8000, mono=True)
 
-def run(input_path: str, output_path: str):
-    # Load hyperparameters file with command-line overrides
-    # hparams_file, run_opts, overrides = sb.parse_arguments(sys.argv[1:])
-    hparams_file, run_opts, overrides = sb.parse_arguments(
-        ["util/models/speech_separation/hyperparams.yaml"])
-    with open(hparams_file) as fin:
-        hparams = load_hyperpyyaml(fin, overrides)
-    print("hparams loaded")
-    # Load pretrained model if pretrained_separator is present in the yaml
-    if "pretrained_separator" in hparams:
-        run_on_main(hparams["pretrained_separator"].collect_files)
-        hparams["pretrained_separator"].load_collected(
-            device=run_opts["device"]
-        )
-    print("pretrained separator loaded")
-   # Brain class initialization
-    separator = Separation(
-        modules=hparams["modules"],
-        hparams=hparams,
-        run_opts=run_opts,
-    )
-    print("brain class loaded")
-    mix_audio = read_audio("util/models/speech_separation/test_mix_2.wav")
-    print("mix audio loaded")
+    tensor = torch.from_numpy(np.expand_dims(mix_audio, axis=0)).float()
     with torch.no_grad():
-        predictions = separator.compute_forward(mix=mix_audio.unsqueeze(0))
-
+        predictions = separator.compute_forward(
+            mix=tensor[0].unsqueeze(0))
     print("compute forward loaded")
 
-    separator.save_audio(predictions=predictions,
-                         output_path="util/models/speech_separation/results")
-    print("done separation")
+    # TODO: EXPORT TO BUCKET INSTEAD
+    print("separation processing")
+    # separator.save_local(predictions=predictions, output_path='results')
+    return separator.save_audio(predictions=predictions)
+
+
+# Load hyperparameters file with command-line overrides
+# hparams_file, run_opts, overrides = sb.parse_arguments(sys.argv[1:])
+hparams_file, run_opts, overrides = sb.parse_arguments(
+    ["util/models/speech_separation/hyperparams.yaml"])
+with open(hparams_file) as fin:
+    hparams = load_hyperpyyaml(fin, overrides)
+print("hparams loaded")
+# Load pretrained model if pretrained_separator is present in the yaml
+if "pretrained_separator" in hparams:
+    run_on_main(hparams["pretrained_separator"].collect_files)
+    hparams["pretrained_separator"].load_collected(
+        device=run_opts["device"]
+    )
+print("pretrained separator loaded")
+# Brain class initialization
+separator = Separation(
+    modules=hparams["modules"],
+    hparams=hparams,
+    run_opts=run_opts,
+)
+print("brain class loaded")
