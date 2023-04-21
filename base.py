@@ -1,11 +1,14 @@
 from api.models import separate
 from api.models import upsample
+from api.models import speaker_id
 from api import upload
 from api import split
 from fastapi import APIRouter
 
 app_router = APIRouter()
 
+app_router.include_router(
+    speaker_id.router, prefix="/models/speaker-id", tags=["models"])
 app_router.include_router(
     separate.router, prefix="/models/separate", tags=["models"])
 app_router.include_router(
