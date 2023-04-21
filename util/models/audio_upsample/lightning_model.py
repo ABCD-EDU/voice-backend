@@ -9,11 +9,11 @@ import torch.nn.functional as F
 import pytorch_lightning as pl
 from scipy.io.wavfile import write as swrite
 
-from model import NuWave as model
-import dataloader
-from utils.tblogger import TensorBoardLoggerExpanded
-import filters
-from utils.stft import STFTMag
+from util.models.audio_upsample.model import NuWave as model
+import util.models.audio_upsample.dataloader as dataloader
+from util.models.audio_upsample.utils.tblogger import TensorBoardLoggerExpanded
+import util.models.audio_upsample.filters
+from util.models.audio_upsample.utils.stft import STFTMag
 
 
 @torch.jit.script
