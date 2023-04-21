@@ -18,7 +18,7 @@ def compile(input_path: str, output_path: str):
 
     for i in range(file_count):
         chunk = AudioSegment.from_file(
-            f"{input_path}/chunk_{i}.mp3", format="mp3")
+            f"{input_path}/chunk_{i}.wav", format="wav")
         output_audio += chunk
 
-    output_audio.export(f"{output_path}/output.mp3", format="mp3")
+    output_audio.export(f"{output_path}/output.wav", format="wav")

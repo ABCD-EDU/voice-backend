@@ -30,6 +30,8 @@ ckpt_path = os.path.join(hparams.log.checkpoint_dir,
 ckpt = torch.load(ckpt_path, map_location='cpu')
 model.load_state_dict(ckpt['state_dict'] if not (
     'EMA' in ckpt_path) else ckpt)
+
+lp = LowPass(ratio=[1/2]).to(device)
 print("MODEL LOADED")
 
 
@@ -38,7 +40,6 @@ def run(audio_bytes: BytesIO):
     wav = torch.Tensor(wav).unsqueeze(0).to(device)
     print("LOADING AUDIO FILES")
 
-    lp = LowPass(ratio=[1/2]).to(device)
     wav = lp(wav, 0)
     print("LOW PASS DONE")
 

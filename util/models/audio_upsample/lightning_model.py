@@ -150,20 +150,26 @@ class NuWave(pl.LightningModule):
                init_noise=True,
                store_intermediate_states=False):
         batch_size = y_down.shape[0]
+        print("batch size finished")
         start_step = self.max_step if start_step is None \
             else min(start_step, self.max_step)
+        print("start step finished")
         step = torch.tensor([start_step] * batch_size,
                             dtype=torch.long,
                             device=self.device)
+        print("step finished")
         y_t = torch.randn_like(
             y_down, device=self.device) if init_noise \
             else self.q_sample(y_down, step=step)
         ys = [y_t]
         t = start_step - 1
+        print("y_t finsiehd")
         while t >= 0:
+            print("STEP:", t)
             y_t = self.compute_inverse_dynamincs(y_t, y_down, t)
             ys.append(y_t)
             t -= 1
+        print("t>0 finished")
         return ys if store_intermediate_states else ys[-1]
 
     def forward(self, x, x_clean, noise_level):

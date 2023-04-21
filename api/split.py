@@ -21,7 +21,7 @@ def split_audio(id: str):
         minio_client = minio.get_minio_client()
         data = minio_client.get_object(
             "input-audio",
-            f"{id}.mp3",
+            f"{id}.wav",
         )
         content = data.read()
         chunks = split.split(AudioSegment.from_file(BytesIO(content)))
@@ -47,10 +47,10 @@ def split_audio(id: str):
 
     for i, chunk in enumerate(chunks):
         output_buffer = BytesIO()
-        chunk.export(output_buffer, format="mp3")
+        chunk.export(output_buffer, format="wav")
         output_buffer.seek(0)
 
-        object_name = f"{id}-{i}.mp3"
+        object_name = f"{id}-{i+1}.wav"
         minio_client.put_object(
             bucket_name='audio-chunks',
             object_name=object_name,

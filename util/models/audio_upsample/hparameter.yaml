@@ -25,14 +25,14 @@ arch:
   residual_layers: 30 #
   residual_channels: 64
   dilation_cycle_length: 10
-  pos_emb_dim: 512 
+  pos_emb_dim: 512
 
 ddpm:
   # Set to 1000
-  max_step: 1
+  max_step: 1000
   noise_schedule: "torch.linspace(1e-6, 0.006, hparams.ddpm.max_step)"
   pos_emb_scale: 50000
-  pos_emb_channels: 128 
+  pos_emb_channels: 128
   infer_step: 8
   infer_schedule: "torch.tensor([1e-6,2e-6,1e-5,1e-4,1e-3,1e-2,1e-1,9e-1])"
 
