@@ -2,6 +2,7 @@ from api.models import separate
 from api.models import upsample
 from api.models import speaker_id
 from api import upload
+from api import compile
 from api import split
 from fastapi import APIRouter
 
@@ -15,3 +16,4 @@ app_router.include_router(
     upsample.router, prefix="/models/upsample", tags=["models"])
 app_router.include_router(upload.router, prefix="/upload")
 app_router.include_router(split.router, prefix="/split")
+app_router.include_router(compile.router, prefix="/compile")
