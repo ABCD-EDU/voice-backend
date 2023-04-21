@@ -35,16 +35,16 @@ async def get_results(id: str):
         raise HTTPException(
             status_code=500, detail="Problem with retrieving item in MySQL")
 
-
+    print("NUM OF CHNKS", num_chunks)
     separated_audios = []
     try:
         print("GETTING ITEMS FROM BUCKET")
         # TODO: Get chunks from MinIO bucket (audio-chunks)
         for chunk in range(num_chunks):
             chunk_index = chunk + 1
-
             for i in range(2):
-                print("RETRIEVING", id, i+1)
+                print("RETRIEVING", f"{id}-{chunk_index}-{i+1}.wav")
+
                 object_data = minio.get_object(
                     bucket_name="separated-audio",
                     object_name=f"{id}-{chunk_index}-{i+1}.wav",
@@ -59,32 +59,37 @@ async def get_results(id: str):
             status_code=500, detail="Problem with retrieving item in MinIO")
 
     # TODO: Call upsample.run()
-    try:
-        print("STARTING UPSAMPLE")
-        print(len(separated_audios))
-        for chunk in range(num_chunks):
-            chunk_index = chunk + 1
+    # try:
+    print("STARTING UPSAMPLE")
+    print(len(separated_audios))
 
-            for audio in range(len(separated_audios)):
-                print("CURRENT:", audio)
-                curr_audio = separated_audios[audio]
-                audio_buffer = upsample(curr_audio)
-                audio_buffer.seek(0)
+    sep_audio = 0
+    for chunk in range(num_chunks):
+        chunk_index = chunk + 1
+        for speaker in range(2):
+            print("CURRENT:", "CHUNK", chunk_index, "SPEAKER",
+                  speaker+1, "SEP_AUDIO", sep_audio)
+            curr_audio = separated_audios[sep_audio]
+            print(curr_audio)
+            audio_buffer = upsample(curr_audio)
+            print("seeeking")
+            audio_buffer.seek(0)
+            print("seeked")
 
-                # TODO: Write Output to MinIO bucket (upsampled-audio)
-                minio.put_object(
-                    bucket_name="upsampled-audio",
-                    object_name=f"{id}-{chunk_index}-{audio+1}.wav",
+            # TODO: Write Output to MinIO bucket (upsampled-audio)
+            minio.put_object(
+                bucket_name="upsampled-audio",
+                object_name=f"{id}-{chunk_index}-{speaker+1}.wav",
+                data=audio_buffer,
+                length=len(audio_buffer.getvalue())
+            )
+            sep_audio += 1
 
-                    data=audio_buffer,
-                    length=len(audio_buffer.getvalue())
-                )
-    except:
-        producer.send('audio_processing_queue', key=id.encode("utf-8"), value={
-            "process": "UPSAMPLING", "status": "FAILED"})
-        raise HTTPException(
-            status_code=500, detail="Problem with putting item in MinIO")
-
+    # except:
+    #     producer.send('audio_processing_queue', key=id.encode("utf-8"), value={
+    #         "process": "UPSAMPLING", "status": "FAILED"})
+    #     raise HTTPException(
+    #         status_code=500, detail="Problem with putting item in MinIO")
 
     # TODO: Write DB Status Update
     try:
@@ -103,7 +108,6 @@ async def get_results(id: str):
         producer.send('audio_processing_queue', key=id.encode("utf-8"), value={
             "process": "UPSAMPLING", "status": "FAILED"})
         return HTTPException(status_code=500, detail="Problem with updating item in MySQL")
-
 
     producer.send('audio_processing_queue', key=id.encode("utf-8"), value={
         "process": "UPSAMPLING", "status": "SUCCESS"})

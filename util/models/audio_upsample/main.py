@@ -15,7 +15,7 @@ from io import BytesIO
 
 device = 'cuda'
 no_init_noise = True,
-steps = None
+steps = 8
 hparams = OC.load('util/models/audio_upsample/hparameter.yaml')
 if steps is not None:
     hparams.ddpm.max_step = steps
@@ -23,7 +23,7 @@ if steps is not None:
         "torch.tensor([1e-6,2e-6,1e-5,1e-4,1e-3,1e-2,1e-1,9e-1])"
 else:
     steps = hparams.ddpm.max_step
-model = NuWave(hparams).to(device)
+model = NuWave(hparams, False).to(device)
 
 ckpt_path = os.path.join(hparams.log.checkpoint_dir,
                          "latest_checkpoint.ckpt")
@@ -43,18 +43,11 @@ def run(audio_bytes: BytesIO):
     wav = lp(wav, 0)
     print("LOW PASS DONE")
 
-    upsampled = model.sample(wav, hparams.ddpm.max_step, no_init_noise,
-                             True)
-
+    upsampled = model.sample(wav, hparams.ddpm.max_step, no_init_noise, False)
     print("UPSAMPLING DONE")
 
     audio_buffer = BytesIO()
-    for i, uwav in enumerate(upsampled):
-        t = hparams.ddpm.max_step - i
-        if t != 0:
-            continue
-        swrite(audio_buffer,
-               hparams.audio.sr, uwav[0].detach().cpu().numpy())
+    swrite(audio_buffer, hparams.audio.sr, upsampled[0].detach().cpu().numpy())
     print("SAVING TO BUFFER DONE")
 
     return audio_buffer
