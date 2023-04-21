@@ -5,7 +5,7 @@ from pydub import AudioSegment
 from minio.error import S3Error
 from io import BytesIO
 
-from util.audio.convert import convert_to_mp3
+from util.audio.convert import convert_to_wav
 import util.db.client as db
 import util.minio.client as minio
 from util.kafka.producer import KafkaProducerSingleton
@@ -29,16 +29,16 @@ async def upload_audio_file(
 
     FILE_FORMAT = file.filename.split(".")[-1]
 
-    if FILE_FORMAT != "mp3":
+    if FILE_FORMAT != "wav":
         audio_content = await file.read()
-        mp3_buffer = convert_to_mp3(audio_content)
+        wav_buffer = convert_to_wav(audio_content)
 
     try:
         minio.get_minio_client().put_object(
             bucket_name=BUCKET_NAME,
-            object_name=f"{FILE_NAME}.mp3",
-            data=mp3_buffer if FILE_FORMAT != "mp3" else file.file,
-            length=mp3_buffer.getbuffer().nbytes if FILE_FORMAT != 'mp3' else int(content_length)-500,
+            object_name=f"{FILE_NAME}.wav",
+            data=wav_buffer if FILE_FORMAT != "wav" else file.file,
+            length=wav_buffer.getbuffer().nbytes if FILE_FORMAT != 'wav' else int(content_length)-500,
             content_type='audio/mpeg'
         )
     except S3Error as exc:
@@ -70,3 +70,5 @@ async def upload_audio_file(
         "process": "UPLOAD", "status": "SUCCESS"})
     producer.send('audio_file_upload', key=FILE_NAME.encode(
         "utf-8"), value="SUCCESS")
+
+    return FILE_NAME

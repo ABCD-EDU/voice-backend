@@ -1,8 +1,8 @@
-#Some codes are adopted from
-#https://github.com/ivanvovk/WaveGrad
-#https://github.com/lmnt-com/diffwave
-#https://github.com/lucidrains/denoising-diffusion-pytorch
-#https://github.com/hojonathanho/diffusion
+# Some codes are adopted from
+# https://github.com/ivanvovk/WaveGrad
+# https://github.com/lmnt-com/diffwave
+# https://github.com/lucidrains/denoising-diffusion-pytorch
+# https://github.com/hojonathanho/diffusion
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -27,14 +27,14 @@ class NuWave(pl.LightningModule):
         self.save_hyperparameters(hparams)
         self.model = model(hparams)
         self.filter_ratio = [1. / hparams.audio.ratio]
-        self.norm = nn.L1Loss()  #loss
+        self.norm = nn.L1Loss()  # loss
 
         if not train:
             self.stft = STFTMag(2048, 512)
 
             def snr(pred, target):
-                return (20 *torch.log10(torch.norm(target, dim=-1) \
-                        /torch.norm(pred -target, dim =-1).clamp(min =1e-8))).mean()
+                return (20 * torch.log10(torch.norm(target, dim=-1)
+                        / torch.norm(pred - target, dim=-1).clamp(min=1e-8))).mean()
 
             def lsd(pred, target):
                 sp = torch.log10(self.stft(pred).square().clamp(1e-8))
@@ -45,13 +45,13 @@ class NuWave(pl.LightningModule):
             self.lsd = lsd
 
         self.set_noise_schedule(hparams, train)
-    
+
     # DDPM backbone is adopted form https://github.com/ivanvovk/WaveGrad
     def set_noise_schedule(self, hparams, train=True):
         self.max_step = hparams.ddpm.max_step if train \
-                else hparams.ddpm.infer_step
+            else hparams.ddpm.infer_step
         noise_schedule = eval(hparams.ddpm.noise_schedule) if train \
-                else eval(hparams.ddpm.infer_schedule)
+            else eval(hparams.ddpm.infer_schedule)
 
         self.register_buffer('betas', noise_schedule, False)
         self.register_buffer('alphas', 1 - self.betas, False)
@@ -73,10 +73,10 @@ class NuWave(pl.LightningModule):
                              (1. - self.alphas_cumprod).sqrt() *
                              self.sqrt_recip_alphas_cumprod, False)
         posterior_variance = self.betas * (1 - self.alphas_cumprod_prev) \
-                             / (1 - self.alphas_cumprod)
+            / (1 - self.alphas_cumprod)
         posterior_variance = torch.stack(
-                            [posterior_variance,
-                             torch.FloatTensor([1e-20] * self.max_step)])
+            [posterior_variance,
+             torch.FloatTensor([1e-20] * self.max_step)])
         posterior_log_variance_clipped = posterior_variance.max(
             dim=0).values.log()
         posterior_mean_coef1 = self.betas * self.alphas_cumprod_prev.sqrt() / (
@@ -94,8 +94,8 @@ class NuWave(pl.LightningModule):
     def sample_continuous_noise_level(self, step):
         rand = torch.rand_like(step, dtype=torch.float, device=step.device)
         continuous_sqrt_alpha_cumprod = \
-                self.sqrt_alphas_cumprod_prev[step - 1] * rand \
-                + self.sqrt_alphas_cumprod_prev[step] * (1. - rand)
+            self.sqrt_alphas_cumprod_prev[step - 1] * rand \
+            + self.sqrt_alphas_cumprod_prev[step] * (1. - rand)
         return continuous_sqrt_alpha_cumprod.unsqueeze(-1)
 
     def q_sample(self, y_0, step=None, noise_level=None, eps=None):
@@ -113,7 +113,7 @@ class NuWave(pl.LightningModule):
 
     def q_posterior(self, y_0, y, step):
         posterior_mean = self.posterior_mean_coef1[step] * y_0  \
-                         + self.posterior_mean_coef2[step] * y
+            + self.posterior_mean_coef2[step] * y
         posterior_log_variance_clipped = self.posterior_log_variance_clipped[step]
         return posterior_mean, posterior_log_variance_clipped
 
@@ -150,20 +150,26 @@ class NuWave(pl.LightningModule):
                init_noise=True,
                store_intermediate_states=False):
         batch_size = y_down.shape[0]
+        print("batch size finished")
         start_step = self.max_step if start_step is None \
-                else min(start_step, self.max_step)
+            else min(start_step, self.max_step)
+        print("start step finished")
         step = torch.tensor([start_step] * batch_size,
                             dtype=torch.long,
                             device=self.device)
+        print("step finished")
         y_t = torch.randn_like(
-                y_down, device=self.device) if init_noise \
-                else self.q_sample(y_down, step=step)
+            y_down, device=self.device) if init_noise \
+            else self.q_sample(y_down, step=step)
         ys = [y_t]
         t = start_step - 1
+        print("y_t finsiehd")
         while t >= 0:
+            print("STEP:", t)
             y_t = self.compute_inverse_dynamincs(y_t, y_down, t)
             ys.append(y_t)
             t -= 1
+        print("t>0 finished")
         return ys if store_intermediate_states else ys[-1]
 
     def forward(self, x, x_clean, noise_level):
@@ -172,8 +178,8 @@ class NuWave(pl.LightningModule):
 
     def common_step(self, y, y_low, step):
         noise_level = self.sample_continuous_noise_level(step) \
-                if self.training \
-                else self.sqrt_alphas_cumprod_prev[step].unsqueeze(-1)
+            if self.training \
+            else self.sqrt_alphas_cumprod_prev[step].unsqueeze(-1)
         eps = torch.randn_like(y, device=y.device)
         y_noisy = self.q_sample(y, noise_level=noise_level, eps=eps)
         eps_recon = self.model(y_noisy, y_low, noise_level)
@@ -182,7 +188,8 @@ class NuWave(pl.LightningModule):
 
     def training_step(self, batch, batch_nb):
         wav, wav_l = batch
-        step = torch.randint(0, self.max_step, (wav.shape[0], ), device=self.device) + 1
+        step = torch.randint(
+            0, self.max_step, (wav.shape[0], ), device=self.device) + 1
         loss, *_ = self.common_step(wav, wav_l, step)
         self.log('loss', loss, sync_dist=True)
         return loss
@@ -192,7 +199,7 @@ class NuWave(pl.LightningModule):
         step = torch.randint(
             0, self.max_step, (wav.shape[0], ), device=self.device) + 1
         loss, y, y_low, y_noisy, eps, eps_recon = \
-                self.common_step(wav, wav_l, step)
+            self.common_step(wav, wav_l, step)
 
         self.log('val_loss', loss, sync_dist=True)
         if batch_nb == 0:
@@ -208,7 +215,6 @@ class NuWave(pl.LightningModule):
                                           y_recon[i], eps_error[i],
                                           self.current_epoch)
 
-            
         return {
             'val_loss': loss,
         }
