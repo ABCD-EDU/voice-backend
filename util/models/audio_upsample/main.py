@@ -31,7 +31,6 @@ ckpt = torch.load(ckpt_path, map_location='cpu')
 model.load_state_dict(ckpt['state_dict'] if not (
     'EMA' in ckpt_path) else ckpt)
 
-
 lp = LowPass(ratio=[1/2]).to(device)
 print("MODEL LOADED")
 

@@ -12,7 +12,7 @@ from scipy.io.wavfile import write as swrite
 from util.models.audio_upsample.model import NuWave as model
 import util.models.audio_upsample.dataloader as dataloader
 from util.models.audio_upsample.utils.tblogger import TensorBoardLoggerExpanded
-import util.models.audio_upsample.filters
+import util.models.audio_upsample.filters as filters
 from util.models.audio_upsample.utils.stft import STFTMag
 
 
