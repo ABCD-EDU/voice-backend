@@ -74,7 +74,7 @@ async def run(id: str):
         for i in range(2):
             minio.put_object(
                 bucket_name="recompiled-audio",
-                object_name=f"{id}-{i}.wav",
+                object_name=f"{id}-{i+1}.wav",
                 data=audio1 if i == 1 else audio2,
                 length=len(audio1.getvalue() if i == 1 else audio2.getvalue())
             )
