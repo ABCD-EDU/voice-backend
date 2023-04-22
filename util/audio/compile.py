@@ -18,3 +18,17 @@ def compile(audio1, audio2):
     test.export(test_out, format="wav")
 
     return test_out
+
+def compile_many(audio_segments):
+    # create AudioSegment object from the first segment
+    combined_segment = AudioSegment.from_file(audio_segments[0], format="wav")
+
+    # concatenate the remaining audio segments
+    for audio_segment in audio_segments[1:]:
+        combined_segment += AudioSegment.from_file(audio_segment, format="wav")
+
+    # export the combined audio as a new BytesIO object
+    combined_audio = io.BytesIO()
+    combined_segment.export(combined_audio, format='wav')
+
+    return combined_audio

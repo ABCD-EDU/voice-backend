@@ -10,8 +10,13 @@ import util.db.client as db
 router = APIRouter()
 
 
-@router.post("")
-def split_audio(id: str):
+@router.post("", status_code=201)
+async def split_audio(id: str):
+    if id == None or id == "":
+        raise HTTPException(
+            status_code=500, detail="Request ID is required"
+        )
+
     producer = KafkaProducerSingleton.getInstance().producer
 
     producer.send('audio_processing_queue', key=id.encode("utf-8"), value={
@@ -28,7 +33,7 @@ def split_audio(id: str):
     except:
         producer.send('audio_processing_queue', key=id.encode("utf-8"), value={
             "process": "CHUNKED", "status": "FAILED"})
-        return HTTPException(status_code="500", detail="Problem with retrieving item in MinIO bucket")
+        raise HTTPException(status_code="500", detail="Problem with retrieving item in MinIO bucket")
 
     try:
         cursor = db.get_db().cursor()
@@ -45,18 +50,26 @@ def split_audio(id: str):
         raise HTTPException(
             status_code=500, detail="Something went wrong with writing results to DB")
 
-    for i, chunk in enumerate(chunks):
-        output_buffer = BytesIO()
-        chunk.export(output_buffer, format="wav")
-        output_buffer.seek(0)
+    try:
+      for i, chunk in enumerate(chunks):
+          output_buffer = BytesIO()
+          chunk.export(output_buffer, format="wav")
+          output_buffer.seek(0)
 
-        object_name = f"{id}-{i+1}.wav"
-        minio_client.put_object(
-            bucket_name='audio-chunks',
-            object_name=object_name,
-            data=output_buffer,
-            length=output_buffer.getbuffer().nbytes
-        )
+          object_name = f"{id}-{i+1}.wav"
+          minio_client.put_object(
+              bucket_name='audio-chunks',
+              object_name=object_name,
+              data=output_buffer,
+              length=output_buffer.getbuffer().nbytes
+          )
+    except:
+        producer.send('audio_processing_queue', key=id.encode("utf-8"), value={
+            "process": "CHUNKED", "status": "FAILED"})
+        raise HTTPException(
+            status_code=500, detail="Problem with putting item in MinIO")
+
+
 
     producer.send('audio_processing_queue', key=id.encode("utf-8"), value={
                   "process": "CHUNKED", "status": "SUCCESS"})

@@ -11,7 +11,12 @@ router = APIRouter()
 
 
 @router.post("/", status_code=201)
-def run(id: str):
+async def run(id: str):
+    if id == None:
+        raise HTTPException(
+            status_code=500, detail="Request ID is required"
+        )
+
     producer = KafkaProducerSingleton.getInstance().producer
     minio = get_minio_client()
 
