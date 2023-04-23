@@ -1,6 +1,5 @@
 
 from fastapi import APIRouter, HTTPException
-import json
 from io import BytesIO
 
 from util.db.client import get_db

@@ -1,8 +1,10 @@
 # Speech Separation Backend
+To run the server on development mode, use the following commands on the root folder:
 
-To run the server on development mode, use the command:
+### Job API
+`python -m uvicorn job.main:app --port 8000 --reload`
 
-`python -m uvicorn main:app --reload`
+### Models API
+`python -m uvicorn models.main:app --port 8001 --reload`
 
-> Access the server by going to 127.0.0.1:8000 <br/>
- Access the documentation by going to 127.0.0.1:8000/docs
+> Access the server by going to `127.0.0.1:8000` and `127.0.0.1:8001` <br/>

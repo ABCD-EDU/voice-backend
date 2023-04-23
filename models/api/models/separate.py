@@ -36,7 +36,7 @@ async def get_results(id: str):
         num_chunks = rows[0]
     except:
         producer.send('audio_processing_queue', key=id.encode("utf-8"), value={
-            "process": "UPSAMPLING", "status": "FAILED"})
+            "process": "SEPARATION", "status": "FAILED"})
         raise HTTPException(
             status_code=500, detail="Problem with retrieving item in MySQL")
 
@@ -96,3 +96,5 @@ async def get_results(id: str):
 
     producer.send('audio_processing_queue', key=id.encode("utf-8"), value={
         "process": "SEPARATION", "status": "SUCCESS"})
+
+    return id

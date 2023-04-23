@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import APIRouter, FastAPI
 
-from base import app_router
+from models.base import app_router
 
 
 def include_router(app):
@@ -22,7 +22,7 @@ def add_cors(app):
 
 
 def start_application():
-    app = FastAPI(title="ABCD-EDU API", description="ABCD-EDU",
+    app = FastAPI(title="MODELS API", description="This API contains long running tasks that can't be processed asynchronously",
                   version=1.0, max_request_size=100 * 1024 * 1024)
     include_router(app)
     add_cors(app)

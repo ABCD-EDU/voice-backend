@@ -38,6 +38,6 @@ ddpm:
 
 log:
   name: 'nuwave_x2'
-  checkpoint_dir: 'checkpoint'
+  checkpoint_dir: 'torch_models/checkpoint'
   tensorboard_dir: 'tensorboard'
   test_result_dir: 'test_sample/result'

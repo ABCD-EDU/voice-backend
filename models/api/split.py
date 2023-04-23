@@ -36,21 +36,6 @@ async def split_audio(id: str):
         raise HTTPException(status_code="500", detail="Problem with retrieving item in MinIO bucket")
 
     try:
-        cursor = db.get_db().cursor()
-        query = """
-          UPDATE requests SET STATUS=%s, num_chunks=%s WHERE filename=%s
-        """
-        values = ("CHUNKED", len(chunks), f"{id}")
-
-        cursor.execute(query, values)
-        db.get_db().commit()
-    except:
-        producer.send('audio_processing_queue', key=id.encode("utf-8"), value={
-            "process": "CHUNKED", "status": "FAILED"})
-        raise HTTPException(
-            status_code=500, detail="Something went wrong with writing results to DB")
-
-    try:
       for i, chunk in enumerate(chunks):
           output_buffer = BytesIO()
           chunk.export(output_buffer, format="wav")
@@ -69,7 +54,22 @@ async def split_audio(id: str):
         raise HTTPException(
             status_code=500, detail="Problem with putting item in MinIO")
 
+    try:
+        cursor = db.get_db().cursor()
+        query = """
+          UPDATE requests SET STATUS=%s, num_chunks=%s WHERE filename=%s
+        """
+        values = ("CHUNKED", len(chunks), f"{id}")
 
+        cursor.execute(query, values)
+        db.get_db().commit()
+    except:
+        producer.send('audio_processing_queue', key=id.encode("utf-8"), value={
+            "process": "CHUNKED", "status": "FAILED"})
+        raise HTTPException(
+            status_code=500, detail="Something went wrong with writing results to DB")
 
     producer.send('audio_processing_queue', key=id.encode("utf-8"), value={
                   "process": "CHUNKED", "status": "SUCCESS"})
+
+    return id

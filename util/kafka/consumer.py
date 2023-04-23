@@ -26,3 +26,5 @@ class SingletonKafkaConsumer:
         self.consumer.unsubscribe()
         self.topic = new_topic
         self.consumer.subscribe([new_topic])
+
+SingletonKafkaConsumer()

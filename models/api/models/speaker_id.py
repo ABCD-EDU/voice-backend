@@ -22,7 +22,7 @@ async def run(id: str):
 
     # TODO: Kafka Producer Events
     producer.send('audio_processing_queue', key=id.encode("utf-8"), value={
-        "process": "SEPARATION", "status": "PROCESSING"})
+        "process": "IDENTIFICATION", "status": "PROCESSING"})
 
     # TODO: Call DB for num_chunks
     try:
@@ -36,7 +36,7 @@ async def run(id: str):
         num_chunks = rows[0]
     except:
         producer.send('audio_processing_queue', key=id.encode("utf-8"), value={
-            "process": "UPSAMPLING", "status": "FAILED"})
+            "process": "IDENTIFICATION", "status": "FAILED"})
         raise HTTPException(
             status_code=500, detail="Problem with retrieving item in MySQL")
 
@@ -58,7 +58,7 @@ async def run(id: str):
                 upsampled_audios.append(audio_bytes)
     except:
         producer.send('audio_processing_queue', key=id.encode("utf-8"), value={
-            "process": "UPSAMPLING", "status": "FAILED"})
+            "process": "IDENTIFICATION", "status": "FAILED"})
         raise HTTPException(
             status_code=500, detail="Problem with retrieving item in MinIO")
 

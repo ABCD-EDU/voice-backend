@@ -1,9 +1,6 @@
-from kafka import KafkaProducer
-from fastapi import APIRouter, UploadFile, File, HTTPException, Header
+from fastapi import APIRouter, UploadFile, File, HTTPException, Header, BackgroundTasks
 import uuid
-from pydub import AudioSegment
 from minio.error import S3Error
-from io import BytesIO
 
 from util.audio.convert import convert_to_wav
 import util.db.client as db
@@ -12,20 +9,10 @@ from util.kafka.producer import KafkaProducerSingleton
 
 router = APIRouter()
 
-
-@router.post("", status_code=200)
-async def upload_audio_file(
-    file: UploadFile = File(...),
-    content_length: str = Header(...)
-):
-    BUCKET_NAME = "input-audio"
-    FILE_NAME = uuid.uuid4().hex
-
+async def upload_async(FILE_NAME, file, BUCKET_NAME, content_length):
     producer = KafkaProducerSingleton.getInstance().producer
     producer.send('audio_processing_queue', key=FILE_NAME.encode("utf-8"), value={
                   "process": "UPLOAD", "status": "PROCESSING"})
-    producer.send('audio_file_upload', key=FILE_NAME.encode(
-        "utf-8"), value="PROCESSING")
 
     FILE_FORMAT = file.filename.split(".")[-1]
 
@@ -44,8 +31,6 @@ async def upload_audio_file(
     except S3Error as exc:
         producer.send('audio_processing_queue', key=FILE_NAME.encode("utf-8"), value={
                       "process": "UPLOAD", "status": "FAILED"})
-        producer.send('audio_file_upload', key=FILE_NAME.encode(
-            "utf-8"), value="FAILED")
         raise HTTPException(status_code=500, detail=str(exc))
 
     try:
@@ -61,14 +46,20 @@ async def upload_audio_file(
     except exc:
         producer.send('audio_processing_queue', key=FILE_NAME.encode("utf-8"), value={
                       "process": "UPLOAD", "status": "FAILED"})
-        producer.send('audio_file_upload', key=FILE_NAME.encode(
-            "utf-8"), value="FAILED")
-
         raise HTTPException(status_code=500, detail=str(exc))
 
     producer.send('audio_processing_queue', key=FILE_NAME.encode("utf-8"), value={
         "process": "UPLOAD", "status": "SUCCESS"})
-    producer.send('audio_file_upload', key=FILE_NAME.encode(
-        "utf-8"), value="SUCCESS")
+
+@router.post("", status_code=200)
+async def upload_audio_file(
+    bg_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    content_length: str = Header(...)
+):
+    BUCKET_NAME = "input-audio"
+    FILE_NAME = uuid.uuid4().hex
+
+    bg_tasks.add_task(upload_async, FILE_NAME, file, BUCKET_NAME, content_length)
 
     return FILE_NAME

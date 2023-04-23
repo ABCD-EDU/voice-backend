@@ -22,7 +22,7 @@ async def run(id: str):
     producer = KafkaProducerSingleton.getInstance().producer
     # TODO: Add Kafka Event Producers
     producer.send('audio_processing_queue', key=id.encode("utf-8"), value={
-        "process": "UPSAMPLING", "status": "PROCESSING"})
+        "process": "RECOMPILED", "status": "PROCESSING"})
 
     # TODO: Call DB for num_chunks
     try:
@@ -37,7 +37,7 @@ async def run(id: str):
         num_chunks = rows[0]
     except:
         producer.send('audio_processing_queue', key=id.encode("utf-8"), value={
-            "process": "UPSAMPLING", "status": "FAILED"})
+            "process": "RECOMPILED", "status": "FAILED"})
         raise HTTPException(
             status_code=500, detail="Problem with retrieving item in MySQL")
 
@@ -64,7 +64,7 @@ async def run(id: str):
                   audio2_segments.append(audio_bytes)
     except:
         producer.send('audio_processing_queue', key=id.encode("utf-8"), value={
-            "process": "UPSAMPLING", "status": "FAILED"})
+            "process": "RECOMPILED", "status": "FAILED"})
         raise HTTPException(
             status_code=500, detail="Problem with retrieving item in MinIO")
 
@@ -80,6 +80,29 @@ async def run(id: str):
             )
     except:
         producer.send('audio_processing_queue', key=id.encode("utf-8"), value={
-            "process": "UPSAMPLING", "status": "FAILED"})
+            "process": "RECOMPILED", "status": "FAILED"})
         raise HTTPException(
             status_code=500, detail="Problem with putting item in MinIO")
+
+    # TODO: Write DB Status Update
+    try:
+        print("UPDATING STATUS FROM DB")
+        cursor = get_db().cursor()
+        query = """
+          UPDATE requests
+          SET status = 'COMPLETED'
+          WHERE filename = %s;
+        """
+        values = (id,)
+
+        cursor.execute(query, values)
+        get_db().commit()
+    except:
+        producer.send('audio_processing_queue', key=id.encode("utf-8"), value={
+            "process": "RECOMPILED", "status": "FAILED"})
+        return HTTPException(status_code=500, detail="Problem with updating item in MySQL")
+
+    producer.send('audio_processing_queue', key=id.encode("utf-8"), value={
+            "process": "RECOMPILED", "status": "SUCCESS"})
+
+    return id
