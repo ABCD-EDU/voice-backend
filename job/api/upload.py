@@ -62,7 +62,7 @@ async def upload_async(FILE_NAME, file, BUCKET_NAME):
         Triggers an Airflow DAG with the specified dag_id and configuration parameters in conf.
         """
         airflow_url = "http://localhost:8080/api/v1"
-        dag_id = "audio_processing_dag"
+        dag_id = "audio_processing_dag_v2"
         dag_run_url = f"{airflow_url}/dags/{dag_id}/dagRuns"
         headers = {"Content-Type": "application/json", "Authorization": "Basic YWlyZmxvdzphaXJmbG93"}
         payload = {"conf": {
@@ -79,21 +79,6 @@ async def upload_async(FILE_NAME, file, BUCKET_NAME):
 
     producer.send('audio_processing_queue', key=FILE_NAME.encode("utf-8"), value={
         "process": "UPLOAD", "status": "SUCCESS"})
-
-# @router.post("", status_code=200)
-# async def upload_audio_file(
-#     bg_tasks: BackgroundTasks,
-#     file: UploadFile = File(...),
-#     content_length: str = Header(...)
-# ):
-#     BUCKET_NAME = "input-audio"
-#     FILE_NAME = uuid.uuid4().hex
-
-#     print(file)
-
-#     bg_tasks.add_task(upload_async, FILE_NAME, file, BUCKET_NAME, content_length)
-
-#     return FILE_NAME
 
 @router.post("", status_code=200)
 async def upload_test(bg_tasks: BackgroundTasks, request: Request, audio: Audio):
@@ -115,20 +100,6 @@ async def upload_test(bg_tasks: BackgroundTasks, request: Request, audio: Audio)
 
         bg_tasks.add_task(upload_async, FILE_NAME, y, BUCKET_NAME)
 
-        """
-        Triggers an Airflow DAG with the specified dag_id and configuration parameters in conf.
-        """
-        airflow_url = "http://localhost:8080/api/v1"
-        dag_id = 'audio_processing_dag_v2'
-        dag_run_url = f"{airflow_url}/dags/{dag_id}/dagRuns"
-        headers = {"Content-Type": "application/json", "Authorization": "Basic YWlyZmxvdzphaXJmbG93"}
-        payload = {"conf": {
-            "id": FILE_NAME
-        }}
-
-        response = requests.post(dag_run_url, json=payload, headers=headers)
-        response.raise_for_status()
-
-        return JSONResponse(content={"message": "Audio file saved successfully"})
+        return JSONResponse(content={"generated_id": FILE_NAME})
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
