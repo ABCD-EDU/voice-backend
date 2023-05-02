@@ -28,7 +28,9 @@ if( $found ){
 #[Ports]
 
 #All the ports you want to forward separated by coma
-$ports=@(80,443,10000,3000,5000,8000,8001,8002);
+# 8000 is for FastAPI
+# 9000 is for MinIO
+$ports=@(80,443,10000,3000,5000,8000,8001,8002,9000,9001,9002);
 
 
 #[Static ip]
