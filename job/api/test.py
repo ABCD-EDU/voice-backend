@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException
-from airflow.api.client.local_client import Client
 from datetime import datetime
 import requests
 
@@ -26,27 +25,9 @@ async def trigger_dag(dag_id: str, job: str):
 
     return {"message": "DAG triggered successfully!"}
 
-@router.get("/check-dag")
-async def dag(id: str):
-    # Define the client object to connect to the Airflow server
-    client = Client(None, None)
-
-    # Define the execution date for the task
-    execution_date = datetime.now()
-
-    task_params = {
-        "my_id": id
-    }
-
-    # Trigger the task using the client object
-    client.trigger_dag(dag_id="my_fastapi_dag", run_id="test", conf=task_params)
-
-    # Return a message indicating that the task has been triggered
-    return {"message": f"Task call_fastapi_endpoint in DAG my_fastapi_dag has been triggered!"}
-
 @router.get("/health-check")
 async def check():
-    return "Hello World"
+    return "Hello Penis"
 
 @router.get("/mysql")
 async def test():

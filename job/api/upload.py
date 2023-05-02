@@ -1,6 +1,13 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Header, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, HTTPException, Header, BackgroundTasks, Request
 import uuid
 from minio.error import S3Error
+from pydantic import BaseModel
+from fastapi.responses import JSONResponse
+import librosa
+import soundfile as sf
+import io
+import base64
+import requests
 
 from util.audio.convert import convert_to_wav
 import util.db.client as db
@@ -9,23 +16,25 @@ from util.kafka.producer import KafkaProducerSingleton
 
 router = APIRouter()
 
-async def upload_async(FILE_NAME, file, BUCKET_NAME, content_length):
+class Audio(BaseModel):
+  audio: str
+
+
+async def upload_async(FILE_NAME, file, BUCKET_NAME):
     producer = KafkaProducerSingleton.getInstance().producer
     producer.send('audio_processing_queue', key=FILE_NAME.encode("utf-8"), value={
                   "process": "UPLOAD", "status": "PROCESSING"})
 
-    FILE_FORMAT = file.filename.split(".")[-1]
-
-    if FILE_FORMAT != "wav":
-        audio_content = await file.read()
-        wav_buffer = convert_to_wav(audio_content)
-
     try:
+        audio_bytes = io.BytesIO()
+        sf.write(audio_bytes, file, 8000, format="wav")
+        audio_bytes.seek(0)
+
         minio.get_minio_client().put_object(
             bucket_name=BUCKET_NAME,
             object_name=f"{FILE_NAME}.wav",
-            data=wav_buffer if FILE_FORMAT != "wav" else file.file,
-            length=wav_buffer.getbuffer().nbytes if FILE_FORMAT != 'wav' else int(content_length)-500,
+            data=audio_bytes,
+            length=len(audio_bytes.getvalue()),
             content_type='audio/mpeg'
         )
     except S3Error as exc:
@@ -48,18 +57,78 @@ async def upload_async(FILE_NAME, file, BUCKET_NAME, content_length):
                       "process": "UPLOAD", "status": "FAILED"})
         raise HTTPException(status_code=500, detail=str(exc))
 
+    try:
+        """
+        Triggers an Airflow DAG with the specified dag_id and configuration parameters in conf.
+        """
+        airflow_url = "http://localhost:8080/api/v1"
+        dag_id = "audio_processing_dag"
+        dag_run_url = f"{airflow_url}/dags/{dag_id}/dagRuns"
+        headers = {"Content-Type": "application/json", "Authorization": "Basic YWlyZmxvdzphaXJmbG93"}
+        payload = {"conf": {
+            "id": FILE_NAME
+        }}
+
+        response = requests.post(dag_run_url, json=payload, headers=headers)
+        response.raise_for_status()
+    except:
+        producer.send('audio_processing_queue', key=FILE_NAME.encode("utf-8"), value={
+                      "process": "UPLOAD", "status": "FAILED"})
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
     producer.send('audio_processing_queue', key=FILE_NAME.encode("utf-8"), value={
         "process": "UPLOAD", "status": "SUCCESS"})
 
+# @router.post("", status_code=200)
+# async def upload_audio_file(
+#     bg_tasks: BackgroundTasks,
+#     file: UploadFile = File(...),
+#     content_length: str = Header(...)
+# ):
+#     BUCKET_NAME = "input-audio"
+#     FILE_NAME = uuid.uuid4().hex
+
+#     print(file)
+
+#     bg_tasks.add_task(upload_async, FILE_NAME, file, BUCKET_NAME, content_length)
+
+#     return FILE_NAME
+
 @router.post("", status_code=200)
-async def upload_audio_file(
-    bg_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
-    content_length: str = Header(...)
-):
-    BUCKET_NAME = "input-audio"
-    FILE_NAME = uuid.uuid4().hex
+async def upload_test(bg_tasks: BackgroundTasks, request: Request, audio: Audio):
+    try:
+        BUCKET_NAME = "input-audio"
+        FILE_NAME = uuid.uuid4().hex
 
-    bg_tasks.add_task(upload_async, FILE_NAME, file, BUCKET_NAME, content_length)
+        audio_data = audio.audio
+        # Convert base64-encoded audio data to bytes
+        audio_bytes = io.BytesIO(base64.b64decode(audio_data.encode("utf-8")))
+        print(audio_bytes)
 
-    return FILE_NAME
+        # Load audio data using librosa
+        y, sr = librosa.load(audio_bytes, sr=8000)
+        print("loaded")
+
+        # Save audio data to disk
+        sf.write("audio.wav", y, sr, format='WAV', subtype='PCM_16')
+
+        bg_tasks.add_task(upload_async, FILE_NAME, y, BUCKET_NAME)
+
+        """
+        Triggers an Airflow DAG with the specified dag_id and configuration parameters in conf.
+        """
+        airflow_url = "http://localhost:8080/api/v1"
+        dag_id = 'audio_processing_dag_v2'
+        dag_run_url = f"{airflow_url}/dags/{dag_id}/dagRuns"
+        headers = {"Content-Type": "application/json", "Authorization": "Basic YWlyZmxvdzphaXJmbG93"}
+        payload = {"conf": {
+            "id": FILE_NAME
+        }}
+
+        response = requests.post(dag_run_url, json=payload, headers=headers)
+        response.raise_for_status()
+
+        return JSONResponse(content={"message": "Audio file saved successfully"})
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)

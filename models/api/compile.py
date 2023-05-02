@@ -12,7 +12,7 @@ router = APIRouter()
 
 
 @router.post("", status_code=201)
-async def run(id: str):
+async def run(id: str, from_bucket: str, to_bucket: str):
     if id == None:
         raise HTTPException(
             status_code=500, detail="Request ID is required"
@@ -49,10 +49,10 @@ async def run(id: str):
       for chunk in range(num_chunks):
           chunk_index = chunk + 1
           for i in range(2):
-              print("RETRIEVING", f"{id}-{chunk_index}-{i+1}.wav")
+              print("RETRIEVING", f"{id}-{chunk_index}-{i+1}.wav from {from_bucket}")
 
               object_data = minio.get_object(
-                  bucket_name="upsampled-audio",
+                  bucket_name=from_bucket,
                   object_name=f"{id}-{chunk_index}-{i+1}.wav",
               )
               object_content = object_data.read()
@@ -70,10 +70,13 @@ async def run(id: str):
 
     audio1 = compile_many(audio1_segments)
     audio2 = compile_many(audio2_segments)
+    # TODO: PUT ITEMS BACK IN BUCKET
     try:
         for i in range(2):
+            print("RETRIEVING", f"{id}-{chunk_index}-{i+1}.wav from {to_bucket}")
+
             minio.put_object(
-                bucket_name="recompiled-audio",
+                bucket_name=to_bucket,
                 object_name=f"{id}-{i+1}.wav",
                 data=audio1 if i == 1 else audio2,
                 length=len(audio1.getvalue() if i == 1 else audio2.getvalue())
