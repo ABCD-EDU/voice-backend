@@ -45,10 +45,10 @@ async def get_all(audio_id: str):
     print("queries")
 
     rows = cursor.fetchone()
-    print(rows)
+    print("ROWS", rows)
     curr_status = rows[0]
   except:
-    raise HTTPException(status_code=500, detail="Problem with retrieving item in MySQL")
+      raise HTTPException(status_code=500, detail="Problem with retrieving item in MySQL")
 
   # TODO: DECIDE IF RETRIEVING SEPARATED ONLY OR BOTH SEPARATED AND UPSAMPLED
   try:
@@ -60,6 +60,6 @@ async def get_all(audio_id: str):
   except:
      raise HTTPException(status_code=500, detail="Problem with retrieving item in MinIO")
 
-  print(audio_files)
+  print(curr_status, audio_files)
 
   return audio_files

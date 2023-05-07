@@ -23,10 +23,10 @@ class KafkaProducerSingleton:
         else:
             self.producer = KafkaProducer(
                 bootstrap_servers=[os.getenv("KAFKA_ENDPOINT")],
-                sasl_mechanism='SCRAM-SHA-256',
-                security_protocol='SASL_SSL',
-                sasl_plain_username=os.getenv("KAFKA_USERNAME"),
-                sasl_plain_password=os.getenv("KAFKA_PASSWORD"),
+                # sasl_mechanism='SCRAM-SHA-256',
+                # security_protocol='SASL_SSL',
+                # sasl_plain_username=os.getenv("KAFKA_USERNAME"),
+                # sasl_plain_password=os.getenv("KAFKA_PASSWORD"),
                 value_serializer=lambda m: json.dumps(m).encode('ascii')
             )
             KafkaProducerSingleton.__instance = self

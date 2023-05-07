@@ -20,15 +20,20 @@ class Audio(BaseModel):
   audio: str
 
 
-async def upload_async(FILE_NAME, file, BUCKET_NAME):
+def upload_async(FILE_NAME, file, BUCKET_NAME):
     producer = KafkaProducerSingleton.getInstance().producer
+    print(producer)
     producer.send('audio_processing_queue', key=FILE_NAME.encode("utf-8"), value={
                   "process": "UPLOAD", "status": "PROCESSING"})
+    print("trest")
 
     try:
         audio_bytes = io.BytesIO()
+        print("init")
         sf.write(audio_bytes, file, 8000, format="wav")
+        print("write")
         audio_bytes.seek(0)
+        print('seked')
 
         minio.get_minio_client().put_object(
             bucket_name=BUCKET_NAME,
@@ -37,6 +42,8 @@ async def upload_async(FILE_NAME, file, BUCKET_NAME):
             length=len(audio_bytes.getvalue()),
             content_type='audio/mpeg'
         )
+
+        print("LOADED")
     except S3Error as exc:
         producer.send('audio_processing_queue', key=FILE_NAME.encode("utf-8"), value={
                       "process": "UPLOAD", "status": "FAILED"})
@@ -52,6 +59,8 @@ async def upload_async(FILE_NAME, file, BUCKET_NAME):
         cursor = db.get_db().cursor()
         cursor.execute(query, values)
         db.get_db().commit()
+
+        print("UPDATED DB")
     except exc:
         producer.send('audio_processing_queue', key=FILE_NAME.encode("utf-8"), value={
                       "process": "UPLOAD", "status": "FAILED"})
@@ -68,6 +77,8 @@ async def upload_async(FILE_NAME, file, BUCKET_NAME):
         payload = {"conf": {
             "id": FILE_NAME
         }}
+
+        print("TRIGGERED DAG")
 
         response = requests.post(dag_run_url, json=payload, headers=headers)
         response.raise_for_status()
@@ -98,7 +109,8 @@ async def upload_test(bg_tasks: BackgroundTasks, request: Request, audio: Audio)
         # Save audio data to disk
         sf.write("audio.wav", y, sr, format='WAV', subtype='PCM_16')
 
-        bg_tasks.add_task(upload_async, FILE_NAME, y, BUCKET_NAME)
+        # bg_tasks.add_task(upload_async, FILE_NAME, y, BUCKET_NAME)
+        upload_async(FILE_NAME, y, BUCKET_NAME)
 
         return JSONResponse(content={"generated_id": FILE_NAME})
     except Exception as e:
