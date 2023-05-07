@@ -2,10 +2,10 @@
 To run the server on development mode, use the following commands on the root folder:
 
 ### Job API
-`python -m uvicorn job.main:app --port 8000 --reload`
+`python -m uvicorn job.main:app --port 8000 --host 0.0.0.0 --reload`
 
 ### Models API
-`python -m uvicorn models.main:app --port 8001 --reload`
+`python -m uvicorn models.main:app --port 8001 --host 0.0.0.0 --reload`
 
 > Access the server by going to `127.0.0.1:8000` and `127.0.0.1:8001` <br/>
 
@@ -28,18 +28,11 @@ if( $found ){
 #[Ports]
 
 #All the ports you want to forward separated by coma
-<<<<<<< HEAD
 # 800x - FastAPI servers: Models and Job
 # 3306 - Database
 # 9092 - Kafka
 # 900x - MinIO
 $ports=@(80,443,10000,3000,5000,8000,8001,8002,3306,9092,9000,9001,9002);
-=======
-# 8000 is for FastAPI
-# 9000 is for MinIO
-$ports=@(80,443,10000,3000,5000,8000,8001,8002,9000,9001,9002);
->>>>>>> f84ab862d0203a3b7ceb5f339995b6a1c0944f8b
-
 
 #[Static ip]
 #You can change the addr to your ip config to listen to a specific address
