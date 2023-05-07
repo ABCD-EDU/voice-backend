@@ -28,7 +28,11 @@ if( $found ){
 #[Ports]
 
 #All the ports you want to forward separated by coma
-$ports=@(80,443,10000,3000,5000,8000,8001,8002);
+# 800x - FastAPI servers: Models and Job
+# 3306 - Database
+# 9092 - Kafka
+# 900x - MinIO
+$ports=@(80,443,10000,3000,5000,8000,8001,8002,3306,9092,9000,9001,9002);
 
 
 #[Static ip]
