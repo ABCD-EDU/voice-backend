@@ -13,14 +13,16 @@ from util.audio.convert import convert_to_wav
 import util.db.client as db
 import util.minio.client as minio
 from util.kafka.producer import KafkaProducerSingleton
+import util.models.denoiser.denoise as denoise
 
 router = APIRouter()
 
 class Audio(BaseModel):
+  denoise: bool
   audio: str
 
 
-def upload_async(FILE_NAME, file, BUCKET_NAME):
+def upload_async(FILE_NAME, file, BUCKET_NAME, do_denoise):
     producer = KafkaProducerSingleton.getInstance().producer
     print(producer)
     producer.send('audio_processing_queue', key=FILE_NAME.encode("utf-8"), value={
@@ -28,12 +30,12 @@ def upload_async(FILE_NAME, file, BUCKET_NAME):
     print("trest")
 
     try:
+        if do_denoise:
+          file = denoise.run(file)
+
         audio_bytes = io.BytesIO()
-        print("init")
         sf.write(audio_bytes, file, 8000, format="wav")
-        print("write")
         audio_bytes.seek(0)
-        print('seked')
 
         minio.get_minio_client().put_object(
             bucket_name=BUCKET_NAME,
@@ -71,7 +73,7 @@ def upload_async(FILE_NAME, file, BUCKET_NAME):
         Triggers an Airflow DAG with the specified dag_id and configuration parameters in conf.
         """
         airflow_url = "http://localhost:8080/api/v1"
-        dag_id = "audio_processing_dag_v2"
+        dag_id = "audio_processing_dag_v3"
         dag_run_url = f"{airflow_url}/dags/{dag_id}/dagRuns"
         headers = {"Content-Type": "application/json", "Authorization": "Basic YWlyZmxvdzphaXJmbG93"}
         payload = {"conf": {
@@ -92,12 +94,13 @@ def upload_async(FILE_NAME, file, BUCKET_NAME):
         "process": "UPLOAD", "status": "SUCCESS"})
 
 @router.post("", status_code=200)
-async def upload_test(bg_tasks: BackgroundTasks, request: Request, audio: Audio):
+async def upload(bg_tasks: BackgroundTasks, request: Request, audio: Audio):
     try:
         BUCKET_NAME = "input-audio"
         FILE_NAME = uuid.uuid4().hex
 
         audio_data = audio.audio
+        do_denoise = audio.denoise
         # Convert base64-encoded audio data to bytes
         audio_bytes = io.BytesIO(base64.b64decode(audio_data.encode("utf-8")))
         print(audio_bytes)
@@ -109,8 +112,8 @@ async def upload_test(bg_tasks: BackgroundTasks, request: Request, audio: Audio)
         # Save audio data to disk
         sf.write("audio.wav", y, sr, format='WAV', subtype='PCM_16')
 
-        # bg_tasks.add_task(upload_async, FILE_NAME, y, BUCKET_NAME)
-        upload_async(FILE_NAME, y, BUCKET_NAME)
+        # bg_tasks.add_task(upload_async, FILE_NAME, y, BUCKET_NAME, do_denoise)
+        upload_async(FILE_NAME, y, BUCKET_NAME, do_denoise)
 
         return JSONResponse(content={"generated_id": FILE_NAME})
     except Exception as e:

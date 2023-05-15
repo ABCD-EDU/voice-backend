@@ -56,3 +56,6 @@ results/
 checkpoint/
 
 .env
+
+ckpt_2_speakers/
+ckpt_3_speakers/

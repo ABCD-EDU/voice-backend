@@ -11,7 +11,7 @@ router = APIRouter()
 
 
 @router.post("/", status_code=201)
-async def get_results(id: str):
+async def get_results(id: str, speaker_count: int):
     if id == None:
         raise HTTPException(
             status_code=500, detail="Request ID is required"
@@ -46,11 +46,11 @@ async def get_results(id: str):
         # TODO: Get chunks from MinIO bucket (audio-chunks)
         for chunk in range(num_chunks):
             chunk_index = chunk + 1
-            for i in range(2):
-                print("RETRIEVING", f"{id}-{chunk_index}-{i+1}.wav")
+            for i in range(speaker_count):
+                print("RETRIEVING", f"{id}-{chunk_index}-{i+1}.wav from", "separated-audio" if speaker_count == 2 else "3-speaker-separated-audio")
 
                 object_data = minio.get_object(
-                    bucket_name="separated-audio",
+                    bucket_name="separated-audio" if speaker_count == 2 else "3-speaker-separated-audio" ,
                     object_name=f"{id}-{chunk_index}-{i+1}.wav",
                 )
                 object_content = object_data.read()
@@ -70,7 +70,7 @@ async def get_results(id: str):
       sep_audio = 0
       for chunk in range(num_chunks):
           chunk_index = chunk + 1
-          for speaker in range(2):
+          for speaker in range(speaker_count):
               print("CURRENT:", "CHUNK", chunk_index, "SPEAKER",
                     speaker+1, "SEP_AUDIO", sep_audio)
               curr_audio = separated_audios[sep_audio]
@@ -82,7 +82,7 @@ async def get_results(id: str):
 
               # TODO: Write Output to MinIO bucket (upsampled-audio)
               minio.put_object(
-                  bucket_name="upsampled-audio",
+                  bucket_name="upsampled-audio" if speaker_count == 2 else "3-speaker-upsampled-audio",
                   object_name=f"{id}-{chunk_index}-{speaker+1}.wav",
                   data=audio_buffer,
                   length=len(audio_buffer.getvalue())
