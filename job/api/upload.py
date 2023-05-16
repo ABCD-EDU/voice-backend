@@ -22,7 +22,7 @@ class Audio(BaseModel):
   audio: str
 
 
-def upload_async(FILE_NAME, file, BUCKET_NAME, do_denoise):
+def upload_async(FILE_NAME, file, BUCKET_NAME, do_denoise=False):
     producer = KafkaProducerSingleton.getInstance().producer
     print(producer)
     producer.send('audio_processing_queue', key=FILE_NAME.encode("utf-8"), value={
@@ -46,10 +46,10 @@ def upload_async(FILE_NAME, file, BUCKET_NAME, do_denoise):
         )
 
         print("LOADED")
-    except S3Error as exc:
+    except:
         producer.send('audio_processing_queue', key=FILE_NAME.encode("utf-8"), value={
                       "process": "UPLOAD", "status": "FAILED"})
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Problem with putting item to MinIO")
 
     try:
         query = """
@@ -63,31 +63,31 @@ def upload_async(FILE_NAME, file, BUCKET_NAME, do_denoise):
         db.get_db().commit()
 
         print("UPDATED DB")
-    except exc:
+    except:
         producer.send('audio_processing_queue', key=FILE_NAME.encode("utf-8"), value={
-                      "process": "UPLOAD", "status": "FAILED"})
-        raise HTTPException(status_code=500, detail=str(exc))
+                      "process": "UPLOAD", "statuis": "FAILED"})
+        raise HTTPException(status_code=500, detail="Problem with writing to MySql")
 
     try:
-        """
-        Triggers an Airflow DAG with the specified dag_id and configuration parameters in conf.
-        """
-        airflow_url = "http://localhost:8080/api/v1"
-        dag_id = "audio_processing_dag_v3"
-        dag_run_url = f"{airflow_url}/dags/{dag_id}/dagRuns"
-        headers = {"Content-Type": "application/json", "Authorization": "Basic YWlyZmxvdzphaXJmbG93"}
-        payload = {"conf": {
-            "id": FILE_NAME
-        }}
+      """
+      Triggers an Airflow DAG with the specified dag_id and configuration parameters in conf.
+      """
+      airflow_url = "http://localhost:8080/api/v1"
+      dag_id = "audio_processing_dag_v3"
+      dag_run_url = f"{airflow_url}/dags/{dag_id}/dagRuns"
+      headers = {"Content-Type": "application/json", "Authorization": "Basic YWlyZmxvdzphaXJmbG93"}
+      payload = {"conf": {
+          "id": FILE_NAME
+      }}
 
-        print("TRIGGERED DAG")
+      print("TRIGGERED DAG")
 
-        response = requests.post(dag_run_url, json=payload, headers=headers)
-        response.raise_for_status()
+      response = requests.post(dag_run_url, json=payload, headers=headers)
+      response.raise_for_status()
     except:
         producer.send('audio_processing_queue', key=FILE_NAME.encode("utf-8"), value={
                       "process": "UPLOAD", "status": "FAILED"})
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Problem with triggering DAG")
 
 
     producer.send('audio_processing_queue', key=FILE_NAME.encode("utf-8"), value={

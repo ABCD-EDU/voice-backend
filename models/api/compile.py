@@ -94,10 +94,10 @@ async def run(id: str, from_bucket: str, to_bucket: str, speaker_count: int):
         cursor = get_db().cursor()
         query = """
           UPDATE requests
-          SET status = 'COMPLETED'
+          SET status = %s
           WHERE filename = %s;
         """
-        values = (id,)
+        values = ("TWO_SPEAKERS_COMPLETED" if speaker_count == 2 else "THREE_SPEAKERS_COMPLETED",id)
 
         cursor.execute(query, values)
         get_db().commit()

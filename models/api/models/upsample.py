@@ -100,10 +100,10 @@ async def get_results(id: str, speaker_count: int):
         cursor = get_db().cursor()
         query = """
           UPDATE requests
-          SET status = 'UPSAMPLED'
+          SET status = %s
           WHERE filename = %s;
         """
-        values = (id,)
+        values = ("TWO_SPEAKERS_UPSAMPLED" if speaker_count == 2 else "THREE_SPEAKERS_UPSAMPLED",id)
 
         cursor.execute(query, values)
         get_db().commit()
