@@ -11,11 +11,16 @@ router = APIRouter()
 
 
 @router.post("/", status_code=201)
-async def get_results(id: str, speaker_count: int):
+async def get_results(id: str, speaker_count: int, mode: str):
     if id == None:
         raise HTTPException(
             status_code=500, detail="Request ID is required"
         )
+
+    bucket_from = "separated-audio" if speaker_count == 2 else "3-speaker-separated-audio"
+    bucket_from = "sota-" + bucket_from if mode == "sota" else bucket_from
+    bucket_to = "upsampled-audio" if speaker_count == 2 else "3-speaker-upsampled-audio"
+    bucket_to = "sota-" + bucket_to if mode == "sota" else bucket_to
 
     minio = get_minio_client()
     producer = KafkaProducerSingleton.getInstance().producer
@@ -50,7 +55,7 @@ async def get_results(id: str, speaker_count: int):
                 print("RETRIEVING", f"{id}-{chunk_index}-{i+1}.wav from", "separated-audio" if speaker_count == 2 else "3-speaker-separated-audio")
 
                 object_data = minio.get_object(
-                    bucket_name="separated-audio" if speaker_count == 2 else "3-speaker-separated-audio" ,
+                    bucket_name=bucket_from,
                     object_name=f"{id}-{chunk_index}-{i+1}.wav",
                 )
                 object_content = object_data.read()
@@ -82,7 +87,7 @@ async def get_results(id: str, speaker_count: int):
 
               # TODO: Write Output to MinIO bucket (upsampled-audio)
               minio.put_object(
-                  bucket_name="upsampled-audio" if speaker_count == 2 else "3-speaker-upsampled-audio",
+                  bucket_name=bucket_to,
                   object_name=f"{id}-{chunk_index}-{speaker+1}.wav",
                   data=audio_buffer,
                   length=len(audio_buffer.getvalue())

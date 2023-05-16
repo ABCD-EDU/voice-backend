@@ -11,11 +11,14 @@ router = APIRouter()
 
 
 @router.post("/", status_code=201)
-async def get_results(id: str, speaker_count: int):
+async def get_results(id: str, speaker_count: int, mode: str):
     if id == None:
         raise HTTPException(
             status_code=500, detail="Request ID is required"
         )
+
+    bucket_to = "separated-audio" if speaker_count == 2 else "3-speaker-separated-audio"
+    bucket_to = "sota-" + bucket_to if mode == "sota" else bucket_to
 
     producer = KafkaProducerSingleton.getInstance().producer
     minio = get_minio_client()
@@ -52,7 +55,7 @@ async def get_results(id: str, speaker_count: int):
           audio_data = BytesIO(object_content)
           print(audio_data)
           print("speaker count", speaker_count)
-          audio_outputs = separate.run(audio_bytes=audio_data, speaker_count=speaker_count)
+          audio_outputs = separate.run(audio_bytes=audio_data, speaker_count=speaker_count, mode=mode)
           print("sep don")
 
           # TODO: Bucket writes
@@ -67,7 +70,7 @@ async def get_results(id: str, speaker_count: int):
               print("FOR CHUNK:", chunk, "SPEAKER:", audio_outputs[speaker], "LENGTH:", len(
                   audio_outputs[speaker].getvalue()), "INDEX:", speaker+1, "OUTPUT TO:","separated-audio" if speaker_count == 2 else "3-speaker-separated-audio")
               minio.put_object(
-                  bucket_name= "separated-audio" if speaker_count == 2 else "3-speaker-separated-audio",
+                  bucket_name= bucket_to,
                   object_name=f"{id}-{chunk_index}-{speaker + 1}.wav",
                   data=output_test,
                   length=len(output_test.getvalue())

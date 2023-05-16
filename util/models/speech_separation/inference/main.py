@@ -35,7 +35,14 @@ url = "https://drive.google.com/drive/folders/1TfF491bHXKuZ39GjzDcoqjo1jZnNqcYW?
 model_2speakers = separator.from_hparams(source="speechbrain/sepformer-libri2mix", savedir='ckpt_2_speakers',run_opts={"device":"cuda"})
 model_3speakers = separator.from_hparams(source="speechbrain/sepformer-libri3mix", savedir='ckpt_3_speakers',run_opts={"device":"cuda"})
 
-def run(audio_bytes: BytesIO, speaker_count: int):
+sota_model_2speakers = separator.from_hparams(source="speechbrain/sepformer-libri2mix", savedir="pretrained_models/sepformer-libri2mix", run_opts={"device":"cuda"})
+sota_model_3speakers = separator.from_hparams(source="speechbrain/sepformer-libri3mix", savedir="pretrained_models/sepformer-libri3mix", run_opts={"device":"cuda"})
+
+def run(audio_bytes: BytesIO, speaker_count: int, mode: str):
+  print("CURRENT MODE:", mode)
+  two_speaker_model_used = model_2speakers if mode == "default" else sota_model_2speakers
+  three_speaker_model_used = model_3speakers if mode == "default" else sota_model_3speakers
+
   print("start run")
   mix_audio, sr = librosa.load(audio_bytes, sr=8000)
   print("loaded librosa")
@@ -46,9 +53,9 @@ def run(audio_bytes: BytesIO, speaker_count: int):
     print("trying to separate batch")
     with torch.no_grad():
       print("inside torch nograd")
-      est_sources = model_2speakers.forward(mix=tensor[0].unsqueeze(0))
+      est_sources = two_speaker_model_used.forward(mix=tensor[0].unsqueeze(0))
   if speaker_count == 3:
-    est_sources = model_3speakers.forward(mix=tensor[0].unsqueeze(0))
+    est_sources = three_speaker_model_used.forward(mix=tensor[0].unsqueeze(0))
     print("est source produced")
     speaker_3 = BytesIO()
     print("bytes 3 ")

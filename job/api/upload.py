@@ -73,7 +73,7 @@ def upload_async(FILE_NAME, file, BUCKET_NAME, do_denoise=False):
       Triggers an Airflow DAG with the specified dag_id and configuration parameters in conf.
       """
       airflow_url = "http://localhost:8080/api/v1"
-      dag_id = "audio_processing_dag_v3"
+      dag_id = "audio_processing_dag_v4"
       dag_run_url = f"{airflow_url}/dags/{dag_id}/dagRuns"
       headers = {"Content-Type": "application/json", "Authorization": "Basic YWlyZmxvdzphaXJmbG93"}
       payload = {"conf": {
